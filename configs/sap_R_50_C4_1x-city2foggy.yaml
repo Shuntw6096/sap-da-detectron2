@@ -1,0 +1,48 @@
+_BASE_: "./Base-RCNN-C4.yaml"
+DATASETS:
+  SOURCE_DOMAIN:
+    TRAIN: ("cityscapes_train",)
+  TARGET_DOMAIN:
+    TRAIN: ("foggy-cityscapes_train",)
+  TRAIN: ("cityscapes_train",)
+  TEST: ("foggy-cityscapes_val",)
+MODEL:
+  META_ARCHITECTURE: "SAPRCNN"
+  BACKBONE:
+    FREEZE_AT: 1
+  WEIGHTS: "detectron2://ImageNetPretrained/MSRA/R-50.pkl"
+  KEYPOINT_ON: False
+  MASK_ON: False
+  DOMAIN_ADAPTATION_ON: True
+  ROI_HEADS:
+    NUM_CLASSES: 8
+  DA_HEAD:
+    IN_FEATURE: "res4"
+    IN_CHANNELS: 1024
+    NUM_ANCHOR_IN_IMG: 5
+    EMBEDDING_KERNEL_SIZE: 3
+    EMBEDDING_NORM: True
+    EMBEDDING_DROPOUT: True
+    FUNC_NAME: "cross_entropy"
+    FOCAL_LOSS_GAMMA: 5.0
+    POOL_TYPE: 'avg'
+    LOSS_WEIGHT: 1.0
+    WINDOW_STRIDES: [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2]
+    WINDOW_SIZES: [3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 35, 37]
+  PROPOSAL_GENERATOR:
+    NAME: "SAPRPN"
+INPUT:
+  MIN_SIZE_TRAIN: (800, 832, 864, 864, 896, 928, 960, 992, 1024)
+  MIN_SIZE_TRAIN_SAMPLING: "choice"
+  MIN_SIZE_TEST: 1024
+  MAX_SIZE_TRAIN: 2048
+  MAX_SIZE_TEST: 2048
+SOLVER:
+  IMS_PER_BATCH: 1 # batch size
+  LR_SCHEDULER_NAME: "WarmupCosineLR"
+  STEPS: (70000, 80000)
+  BASE_LR: 0.00001
+  MAX_ITER: 90000
+  CHECKPOINT_PERIOD: 10000
+TEST:
+  EVAL_PERIOD: 5000
