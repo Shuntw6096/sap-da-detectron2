@@ -5,7 +5,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from detectron2.config import configurable
 from .build import DA_HEAD_REGISTRY
-from ..layers import GradientScalarLayer, style_pool2d
+from ..layers import GradientScalarLayer
 
 @DA_HEAD_REGISTRY.register()
 class SAPNet(nn.Module):
@@ -13,7 +13,7 @@ class SAPNet(nn.Module):
     @configurable
     def __init__(self, *, num_anchors, in_channels, embedding_kernel_size=3,
             embedding_norm=True, embedding_dropout=True, func_name='cross_entropy',
-            focal_loss_gamma=5, pool_type='avg', window_strides=None,
+            pool_type='avg', window_strides=None,
             window_sizes=(3, 9, 15, 21, -1)
         ):
         super().__init__()
@@ -37,21 +37,16 @@ class SAPNet(nn.Module):
         elif pool_type == 'max':
             channel_multiply = 1
             pool_func = F.max_pool2d
-        elif pool_type == 'style':
-            channel_multiply = 2
-            pool_func = style_pool2d
         else:
-            raise ValueError
+            raise ValueError('{}, only support avg and max pooling'.format(pool_type))
         self.pool_type = pool_type
         self.pool_func = pool_func
 
         if func_name == 'cross_entropy':
             num_domain_classes = 2
             loss_func = F.cross_entropy
-
         else:
             raise ValueError
-        self.focal_loss_gamma = focal_loss_gamma
         self.func_name = func_name
         self.loss_func = loss_func
         self.num_domain_classes = num_domain_classes
@@ -64,23 +59,23 @@ class SAPNet(nn.Module):
         bias = not embedding_norm
         self.embedding = nn.Sequential(
             nn.Conv2d(in_channels, in_channels, kernel_size=embedding_kernel_size, stride=1, padding=padding, bias=bias),
-            NormModule(in_channels),
+            # NormModule(in_channels),
             nn.ReLU(True),
             DropoutModule(),
 
             nn.Conv2d(in_channels, 256, kernel_size=embedding_kernel_size, stride=1, padding=padding, bias=bias),
-            NormModule(256),
+            # NormModule(256),
             nn.ReLU(True),
             DropoutModule(),
 
             nn.Conv2d(256, 256, kernel_size=embedding_kernel_size, stride=1, padding=padding, bias=bias),
-            NormModule(256),
+            # NormModule(256),
             nn.ReLU(True),
             DropoutModule(),
         )
 
         self.shared_semantic = nn.Sequential(
-            nn.Conv2d(in_channels + 3 * self.num_anchors, in_channels, kernel_size=embedding_kernel_size, stride=1, padding=padding),
+            nn.Conv2d(in_channels + self.num_anchors, in_channels, kernel_size=embedding_kernel_size, stride=1, padding=padding),
             nn.ReLU(True),
             nn.Conv2d(in_channels, 256, kernel_size=embedding_kernel_size, stride=1, padding=padding),
             nn.ReLU(True),
@@ -166,8 +161,8 @@ class SAPNet(nn.Module):
 
         pyramid_features = list(map(lambda x, y: x * y, pyramid_features, w))
         final_features = sum(pyramid_features)
-        del rpn_logits
-        # del pyramid_features, w, split, merge, fuse, feature, rpn_logits
+        # del rpn_logits
+        del pyramid_features, w, split, merge, fuse, feature, rpn_logits
         final_features = final_features.view(N, -1)
 
         logits = self.predictor(final_features)
@@ -178,7 +173,6 @@ class SAPNet(nn.Module):
             domain_loss = self.loss_func(logits, torch.ones(logits.size(0), dtype=torch.long, device=logits.device))
             return {'loss_sap_target_domain': domain_loss}
 
-
     @classmethod
     def from_config(cls, cfg):
         return {
@@ -188,29 +182,11 @@ class SAPNet(nn.Module):
             'embedding_norm': cfg.MODEL.DA_HEAD.EMBEDDING_NORM,
             'embedding_dropout': cfg.MODEL.DA_HEAD.EMBEDDING_DROPOUT,
             'func_name': cfg.MODEL.DA_HEAD.FUNC_NAME,
-            'focal_loss_gamma': cfg.MODEL.DA_HEAD.FOCAL_LOSS_GAMMA,
             'pool_type': cfg.MODEL.DA_HEAD.POOL_TYPE,
             'window_strides': cfg.MODEL.DA_HEAD.WINDOW_STRIDES,
             'window_sizes': cfg.MODEL.DA_HEAD.WINDOW_SIZES,
         }
 
-    # def __repr__(self):
-    #     attrs = {
-    #         'in_channels': self.in_channels,
-    #         'embedding_kernel_size': self.embedding_kernel_size,
-    #         'embedding_norm': self.embedding_norm,
-    #         'embedding_dropout': self.embedding_dropout,
-    #         'num_domain_classes': self.num_domain_classes,
-    #         'func_name': self.func_name,
-    #         'focal_loss_gamma': self.focal_loss_gamma,
-    #         'pool_type': self.pool_type,
-    #         'loss_weight': self.loss_weight,
-    #         'window_strides': self.window_strides,
-    #         'window_sizes': self.window_sizes,
-    #     }
-    #     table = AsciiTable(list(zip(attrs.keys(), attrs.values())))
-    #     table.inner_heading_row_border = False
-    #     return self.__class__.__name__ + '\n' + table.table
 
 def build_da_heads(cfg):
     return SAPNet(cfg)

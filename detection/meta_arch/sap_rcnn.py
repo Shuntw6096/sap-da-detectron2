@@ -81,17 +81,12 @@ class SAPRCNN(GeneralizedRCNN):
             gt_instances = None 
         s_features = self.backbone(s_images.tensor)
 
-
-
         if self.da_heads:
             # target domain input
             t_images = self.preprocess_image(target_batched_inputs)
             t_features = self.backbone(t_images.tensor)
-
-            self.proposal_generator.training = True
-            s_proposals, proposal_losses, s_rpn_logits = self.proposal_generator(s_images, s_features, gt_instances)
-            self.proposal_generator.training = False
             _, _, t_rpn_logits = self.proposal_generator(t_images, t_features, None)
+            s_proposals, proposal_losses, s_rpn_logits = self.proposal_generator(s_images, s_features, gt_instances)
             da_source_loss = self.da_heads(s_features[self.in_feature_da_heads], s_rpn_logits, 'source')
             da_target_loss = self.da_heads(t_features[self.in_feature_da_heads], t_rpn_logits, 'target')
         else:

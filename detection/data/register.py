@@ -53,7 +53,7 @@ register_coco_instances(meta_name, {}, json_file_path, image_root)
 # register_coco_instances(meta_name, {}, json_file_path, image_root)
 
 json_file_path = dataset_base_dir/'Foggy-cityscapes-coco'/'instancesonly_filtered_gtFine_train.json'
-image_root =  dataset_base_dir/'Cityscapes-coco'/'train'
+image_root =  dataset_base_dir/'Foggy-cityscapes-coco'/'train'
 split = 'train'
 meta_name = 'foggy-cityscapes_{}'.format(split)
 register_coco_instances(meta_name, {}, json_file_path, image_root)
