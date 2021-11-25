@@ -1,0 +1,1 @@
+python tools/train_net.py --config-file "/media/t2-503-c/Data4/ClayYou/detectron2-sap/configs/baseline_R_50_C4_1x-city2foggy.yaml" --num-gpus 1 --test-images MODEL.WEIGHTS "/media/t2-503-c/Data4/ClayYou/detectron2-sap/outputs/output-21-11-24_18-41/model_0004999.pth" MODEL.ROI_HEADS.SCORE_THRESH_TEST 0.75
